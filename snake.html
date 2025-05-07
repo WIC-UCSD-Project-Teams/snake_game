@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Eat the Apple – Snake Game</title>
+  <!-- 1. Load the Honk font -->
+  <link href="https://fonts.googleapis.com/css2?family=Honk&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #de94ad 0%, #B5FFFC 100%);
+      font-family: Arial, sans-serif;
+    }
+
+    #gameContainer {
+      text-align: center;
+    }
+
+    #title {
+      font-family: 'Honk', cursive;
+      font-size: 4rem;
+      margin: 0 0 20px;
+      color: #333;
+      text-shadow: 2px 2px rgba(255,255,255,0.6);
+    }
+
+    #score {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    canvas {
+      border: 3px solid #333;
+      background: #fff;
+      display: block;
+      margin: 10px auto;
+    }
+
+    #startBtn {
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background: #FF9A9E;
+      color: white;
+      font-weight: bold;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.1s;
+    }
+    #startBtn:active {
+      transform: scale(0.96);
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <!-- Title -->
+    <h1 id="title">Eat the Apple</h1>
+    <!-- Score display -->
+    <div id="score">0</div>
+    <!-- Game canvas -->
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
+    <!-- Start/Restart Button -->
+    <button id="startBtn">Start Game</button>
+  </div>
+
+  <script>
+    // ───── Global state ─────────────────────────────────────────
+    const gameCanvas = document.getElementById('gameCanvas');
+    const ctx = gameCanvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const startBtn = document.getElementById('startBtn');
+
+    let snake, dx, dy, changingDirection, score, foodX, foodY;
+    let gameLoopTimeout;
+
+    // ───── 1. RESET & INITIALIZE ALL GAME VARIABLES ─────────────────
+    function initGame() {
+      clearTimeout(gameLoopTimeout);
+      snake = [
+        { x: 150, y: 150 },
+        { x: 140, y: 150 },
+        { x: 130, y: 150 },
+        { x: 120, y: 150 },
+        { x: 110, y: 150 }
+      ];
+      dx = 10; dy = 0;
+      changingDirection = false;
+      score = 0;
+      scoreEl.textContent = score;
+      createFood();
+      clearCanvas();
+      drawFood();
+      drawSnake();
+      startBtn.textContent = 'Restart Game';
+      main();
+    }
+
+    // ───── 2. CANVAS DRAWING ────────────────────────────────────────
+    function clearCanvas() {
+      ctx.fillStyle = 'white';
+      ctx.strokeStyle = 'black';
+      ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+      ctx.strokeRect(0, 0, gameCanvas.width, gameCanvas.height);
+    }
+    function drawSnakePart(part) {
+      ctx.fillStyle = 'lightgreen';
+      ctx.strokeStyle = 'darkgreen';
+      ctx.fillRect(part.x, part.y, 10, 10);
+      ctx.strokeRect(part.x, part.y, 10, 10);
+    }
+    function drawSnake() {
+      snake.forEach(drawSnakePart);
+    }
+    function drawFood() {
+      ctx.fillStyle = 'red';
+      ctx.strokeStyle = 'darkred';
+      ctx.fillRect(foodX, foodY, 10, 10);
+      ctx.strokeRect(foodX, foodY, 10, 10);
+    }
+
+    // ───── 3. SNAKE ADVANCEMENT & EATING ────────────────────────────
+    function advanceSnake() {
+      const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+      snake.unshift(head);
+      if (head.x === foodX && head.y === foodY) {
+        score += 10;
+        scoreEl.textContent = score;
+        createFood();
+      } else {
+        snake.pop();
+      }
+    }
+
+    // ───── 4. DIRECTION CONTROL ─────────────────────────────────────
+    function changeDirection(event) {
+      if (changingDirection) return;
+      changingDirection = true;
+      const LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40;
+      const key = event.keyCode;
+      const goingUp    = dy === -10;
+      const goingDown  = dy === 10;
+      const goingRight = dx === 10;
+      const goingLeft  = dx === -10;
+      if (key === LEFT  && !goingRight) { dx = -10; dy = 0; }
+      if (key === UP    && !goingDown)  { dx = 0; dy = -10; }
+      if (key === RIGHT && !goingLeft)  { dx = 10; dy = 0; }
+      if (key === DOWN  && !goingUp)    { dx = 0; dy = 10; }
+    }
+    document.addEventListener('keydown', changeDirection);
+
+    // ───── 5. FOOD GENERATION ───────────────────────────────────────
+    function randomTen(min, max) {
+      return Math.round((Math.random() * (max - min) + min) / 10) * 10;
+    }
+    function createFood() {
+      foodX = randomTen(0, gameCanvas.width - 10);
+      foodY = randomTen(0, gameCanvas.height - 10);
+      snake.forEach(part => {
+        if (part.x === foodX && part.y === foodY) {
+          createFood();
+        }
+      });
+    }
+
+    // ───── 6. COLLISION DETECTION ───────────────────────────────────
+    function didGameEnd() {
+      for (let i = 4; i < snake.length; i++) {
+        if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) {
+          return true;
+        }
+      }
+      const hitLeft   = snake[0].x < 0;
+      const hitRight  = snake[0].x > gameCanvas.width - 10;
+      const hitTop    = snake[0].y < 0;
+      const hitBottom = snake[0].y > gameCanvas.height - 10;
+      return hitLeft || hitRight || hitTop || hitBottom;
+    }
+
+    // ───── 7. MAIN GAME LOOP ────────────────────────────────────────
+    function main() {
+      if (didGameEnd()) {
+        alert('Game Over! Your score: ' + score);
+        return;
+      }
+      gameLoopTimeout = setTimeout(() => {
+        changingDirection = false;
+        clearCanvas();
+        drawFood();
+        advanceSnake();
+        drawSnake();
+        main();
+      }, 100);
+    }
+
+    // ───── 8. HOOK UP THE BUTTON ────────────────────────────────────
+    startBtn.addEventListener('click', initGame);
+  </script>
+</body>
+</html>
